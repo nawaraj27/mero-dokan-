@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mero dokan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px 16px;
+      background: linear-gradient(180deg, #f7f9fc 0%, #edf3ff 100%);
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 18px 45px rgba(12, 28, 61, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+    }
+
+    p {
+      line-height: 1.6;
+      margin-top: 0;
+    }
+
+    .panel {
+      border: 1px solid #d9e2f2;
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 20px;
+      background: #fbfdff;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    input[type="file"] {
+      flex: 1 1 360px;
+      padding: 10px;
+      border: 1px solid #c8d5eb;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 20px;
+      background: #2563eb;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:disabled {
+      background: #9fb7ee;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 14px;
+      font-weight: 600;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .meta-card {
+      border: 1px solid #dae4f7;
+      border-radius: 12px;
+      padding: 14px;
+      background: #ffffff;
+    }
+
+    .meta-card span {
+      display: block;
+      color: #5b6882;
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+
+    pre {
+      margin: 14px 0 0;
+      padding: 16px;
+      border-radius: 12px;
+      background: #101826;
+      color: #eef4ff;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 180px;
+    }
+
+    .hint {
+      font-size: 0.95rem;
+      color: #4c5870;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Mero dokan</h1>
+    <p>Upload an image or PDF and extract real text using Tesseract OCR with English and Nepali support. PDF files are converted page by page into images before recognition.</p>
+
+    <section class="panel">
+      <strong>Supported formats</strong>
+      <p class="hint">JPG, JPEG, PNG, WEBP, BMP, TIFF, and PDF. OCR languages: English + Nepali. Maximum upload size: 25 MB.</p>
+
+      <div class="controls">
+        <input id="fileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.bmp,.tif,.tiff,.pdf" />
+        <button id="submitBtn" type="button">Extract Text</button>
+      </div>
+
+      <div id="status" class="status">Waiting for file upload.</div>
+
+      <div class="meta">
+        <div class="meta-card">
+          <span>Filename</span>
+          <strong id="filenameValue">-</strong>
+        </div>
+        <div class="meta-card">
+          <span>File type</span>
+          <strong id="fileTypeValue">-</strong>
+        </div>
+        <div class="meta-card">
+          <span>Confidence</span>
+          <strong id="confidenceValue">-</strong>
+        </div>
+      </div>
+
+      <pre id="resultBox">Extracted text will appear here.</pre>
+    </section>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusBox = document.getElementById("status");
+    const resultBox = document.getElementById("resultBox");
+    const filenameValue = document.getElementById("filenameValue");
+    const fileTypeValue = document.getElementById("fileTypeValue");
+    const confidenceValue = document.getElementById("confidenceValue");
+
+    async function submitOCR() {
+      const file = fileInput.files[0];
+      if (!file) {
+        statusBox.textContent = "Please choose a file first.";
+        resultBox.textContent = "";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      submitBtn.disabled = true;
+      statusBox.textContent = "Processing OCR request...";
+      resultBox.textContent = "Running OCR...";
+      filenameValue.textContent = "-";
+      fileTypeValue.textContent = "-";
+      confidenceValue.textContent = "-";
+
+      try {
+        const response = await fetch("/api/ocr", {
+          method: "POST",
+          body: formData
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          statusBox.textContent = "Request failed.";
+          resultBox.textContent = payload.message || "Unknown error.";
+          return;
+        }
+
+        statusBox.textContent = "OCR completed successfully.";
+        filenameValue.textContent = payload.filename || "-";
+        fileTypeValue.textContent = payload.file_type || "-";
+        confidenceValue.textContent = typeof payload.confidence === "number"
+          ? payload.confidence.toFixed(2)
+          : "-";
+        resultBox.textContent = payload.extracted_text || "";
+      } catch (error) {
+        statusBox.textContent = "Request failed.";
+        resultBox.textContent = error.message || "Unable to reach the OCR server.";
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    submitBtn.addEventListener("click", submitOCR);
+  </script>
+</body>
+</html>
