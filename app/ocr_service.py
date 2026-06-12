@@ -27,19 +27,19 @@ class UnsupportedFileTypeError(Exception):
 
 class OCRProcessor:
     def __init__(self) -> None:
-        configured_tesseract = os.getenv("TESSERACT_CMD", "").strip()
-        if configured_tesseract:
-            pytesseract.pytesseract.tesseract_cmd = configured_tesseract
+        # Set Tesseract path
+        tesseract_path = os.getenv("TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe").strip()
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
         try:
             pytesseract.get_tesseract_version()
         except pytesseract.TesseractNotFoundError as exc:
             raise OCRProcessingError(
-                "Tesseract OCR is not installed or not available in PATH. "
+                f"Tesseract OCR is not installed or not available at {tesseract_path}. "
                 "Install Tesseract locally, or set the TESSERACT_CMD environment variable."
             ) from exc
 
-        self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep").strip() or "eng+nep"
+        self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng").strip() or "eng"
         self._validate_languages()
 
     def extract_text(self, filename: str, file_bytes: bytes) -> tuple[str, float, str]:
