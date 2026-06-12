@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import platform
 from pathlib import Path
 from typing import Iterable
 
@@ -27,19 +28,24 @@ class UnsupportedFileTypeError(Exception):
 
 class OCRProcessor:
     def __init__(self) -> None:
-        # Set Tesseract path
-        tesseract_path = os.getenv("TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe").strip()
+        # Set Tesseract path based on platform
+        if platform.system() == "Windows":
+            default_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        else:
+            default_path = "tesseract"
+        
+        tesseract_path = os.getenv("TESSERACT_CMD", default_path).strip()
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
         try:
             pytesseract.get_tesseract_version()
         except pytesseract.TesseractNotFoundError as exc:
             raise OCRProcessingError(
-                f"Tesseract OCR is not installed or not available at {tesseract_path}. "
+                f"Tesseract OCR is not installed or not available at '{tesseract_path}'. "
                 "Install Tesseract locally, or set the TESSERACT_CMD environment variable."
             ) from exc
 
-        self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng").strip() or "eng"
+        self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep").strip() or "eng"
         self._validate_languages()
 
     def extract_text(self, filename: str, file_bytes: bytes) -> tuple[str, float, str]:
