@@ -3,10 +3,16 @@ services:
     name: mero-dokan
     runtime: python
 
-    buildCommand: >
-      apt-get update &&
-      apt-get install -y tesseract-ocr libtesseract-dev tesseract-ocr-eng &&
-      pip install --upgrade pip &&
+    buildCommand: |
+      apt-get update
+      apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev wget
+
+      mkdir -p /usr/share/tesseract-ocr/4.00/tessdata
+
+      wget -O /usr/share/tesseract-ocr/4.00/tessdata/nep.traineddata \
+      https://github.com/tesseract-ocr/tessdata/raw/main/nep.traineddata
+
+      pip install --upgrade pip
       pip install -r requirements.txt
 
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -15,8 +21,8 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.9"
 
-      - key: OCR_LANGUAGES
-        value: "eng"
-
       - key: TESSERACT_CMD
         value: "/usr/bin/tesseract"
+
+      - key: OCR_LANGUAGES
+        value: "eng+nep"
