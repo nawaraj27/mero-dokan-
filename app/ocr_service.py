@@ -4,7 +4,7 @@ import io
 import logging
 import os
 import sys
-import shutil
+import shutilf
 from pathlib import Path
 from typing import Iterable
 
@@ -40,7 +40,7 @@ class OCRProcessor:
         # -------------------------------
         # FIX 1: SAFE TESSERACT DETECTION
         # -------------------------------
-        tesseract_path = shutil.which("tesseract")
+        tesseract_path = os.getenv("TESSERACT_CMD") or shutil.which("tesseract")
 
         if sys.platform.startswith("win"):
             pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
