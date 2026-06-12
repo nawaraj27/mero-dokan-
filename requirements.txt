@@ -6,7 +6,8 @@ pytesseract==0.3.13
 opencv-python-headless==4.8.1.78
 numpy==1.26.4
 PyMuPDF==1.24.10
+
 transformers==4.53.0
-torch==2.2.2
+torch>=2.7.0
 safetensors==0.5.3
 huggingface-hub==0.33.0
