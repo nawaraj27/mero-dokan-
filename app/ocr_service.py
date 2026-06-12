@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
-import platform
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -14,6 +14,8 @@ import pytesseract
 from PIL import Image, ImageOps
 from pytesseract import Output
 
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 SUPPORTED_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {".pdf"}
@@ -29,6 +31,9 @@ class UnsupportedFileTypeError(Exception):
 
 class OCRProcessor:
     def __init__(self) -> None:
+        self.is_available = False
+        self.ocr_languages = "eng"
+        
         # Set Tesseract path based on platform
         if sys.platform.startswith('win'):
             pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -38,16 +43,21 @@ class OCRProcessor:
 
         try:
             pytesseract.get_tesseract_version()
-        except pytesseract.TesseractNotFoundError as exc:
-            raise OCRProcessingError(
-                f"Tesseract OCR is not installed or not available at '{tesseract_path}'. "
-                "Install Tesseract locally, or set the TESSERACT_CMD environment variable."
-            ) from exc
-
-        self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep").strip() or "eng"
-        self._validate_languages()
+            self.is_available = True
+            self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep").strip() or "eng"
+            self._validate_languages()
+            logger.info("OCR processor initialized successfully with languages: %s", self.ocr_languages)
+        except (pytesseract.TesseractNotFoundError, OCRProcessingError) as exc:
+            logger.warning(
+                "Tesseract OCR is not available: %s. OCR functionality will be disabled. "
+                "Install Tesseract or set TESSERACT_CMD environment variable to enable it.",
+                str(exc),
+            )
 
     def extract_text(self, filename: str, file_bytes: bytes) -> tuple[str, float, str]:
+        if not self.is_available:
+            raise OCRProcessingError("OCR processor is not available. Tesseract is not installed on this system.")
+        
         extension = Path(filename).suffix.lower()
         if extension not in SUPPORTED_EXTENSIONS:
             supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))

@@ -28,8 +28,15 @@ ocr_processor: OCRProcessor | None = None
 @app.on_event("startup")
 async def startup_event() -> None:
     global ocr_processor
-    ocr_processor = OCRProcessor()
-    logger.info("OCR processor initialized successfully.")
+    try:
+        ocr_processor = OCRProcessor()
+        if ocr_processor.is_available:
+            logger.info("OCR processor initialized successfully.")
+        else:
+            logger.warning("OCR processor initialized but Tesseract is not available. OCR endpoints will return errors.")
+    except Exception as exc:
+        logger.error("Failed to initialize OCR processor: %s", exc)
+        ocr_processor = OCRProcessor()  # Initialize with graceful fallback
 
 
 @app.get("/")
