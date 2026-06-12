@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import os
 import platform
+import sys
 from pathlib import Path
 from typing import Iterable
 
@@ -29,13 +30,15 @@ class UnsupportedFileTypeError(Exception):
 class OCRProcessor:
     def __init__(self) -> None:
         # Set Tesseract path based on platform
-        if platform.system() == "Windows":
-            default_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        if sys.platform.startswith('win'):
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
         else:
-            default_path = "tesseract"
-        
-        tesseract_path = os.getenv("TESSERACT_CMD", default_path).strip()
-        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+            # Explicitly target the standalone binary folder we built inside the src directory
+            render_binary = '/opt/render/project/src/bin/tesseract'
+            if os.path.exists(render_binary):
+                pytesseract.pytesseract.tesseract_cmd = render_binary
+            else:
+                pytesseract.pytesseract.tesseract_cmd = 'tesseract'
 
         try:
             pytesseract.get_tesseract_version()
