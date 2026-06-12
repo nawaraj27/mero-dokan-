@@ -39,19 +39,30 @@ class OCRProcessor:
         self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep")
 
         # =========================================================
-        # SAFE TESSERACT SETUP (FINAL + RENDER SAFE)
+        # SAFE TESSERACT SETUP (RENDER + LOCAL SAFE)
         # =========================================================
-        tesseract_path = os.getenv("TESSERACT_CMD") or shutil.which("tesseract")
 
-        # Windows fallback
-        if sys.platform.startswith("win"):
-            tesseract_path = tesseract_path or r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        # 1. ENV override
+        tesseract_path = os.getenv("TESSERACT_CMD")
 
+        # 2. system path
         if not tesseract_path:
-            logger.warning("Tesseract not found in system PATH or ENV")
+            tesseract_path = shutil.which("tesseract")
+
+        # 3. Render default fallback
+        if not tesseract_path:
+            tesseract_path = "/usr/bin/tesseract"
+
+        # 4. Windows fallback
+        if sys.platform.startswith("win"):
+            tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+        # verify binary exists
+        if not tesseract_path or not Path(tesseract_path).exists():
+            logger.warning("Tesseract binary not found at: %s", tesseract_path)
             return
 
-        # Verify binary actually works
+        # verify binary works
         try:
             subprocess.run(
                 [tesseract_path, "--version"],
@@ -66,7 +77,7 @@ class OCRProcessor:
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
         logger.info("Tesseract working at: %s", tesseract_path)
 
-        # Verify pytesseract connection
+        # verify pytesseract connection
         try:
             pytesseract.get_tesseract_version()
             self.is_available = True
@@ -74,7 +85,7 @@ class OCRProcessor:
             logger.warning("Tesseract not available: %s", exc)
             return
 
-        # Validate languages
+        # language validation
         try:
             self._validate_languages()
         except Exception as exc:
@@ -92,9 +103,7 @@ class OCRProcessor:
         extension = Path(filename).suffix.lower()
 
         if extension not in SUPPORTED_EXTENSIONS:
-            raise UnsupportedFileTypeError(
-                f"Unsupported file type: {extension}"
-            )
+            raise UnsupportedFileTypeError(f"Unsupported file type: {extension}")
 
         if extension == ".pdf":
             pages = self._pdf_to_images(file_bytes)
@@ -138,11 +147,7 @@ class OCRProcessor:
 
         for page in doc:
             pix = page.get_pixmap(matrix=zoom, alpha=False)
-            img = Image.frombytes(
-                "RGB",
-                [pix.width, pix.height],
-                pix.samples
-            )
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             images.append(img)
 
         doc.close()
@@ -230,10 +235,11 @@ class OCRProcessor:
         for v in details.get("conf", []):
             try:
                 f = float(v)
-                if f >= 0:
+                # pytesseract uses -1 for invalid confidence
+                if f > 0:
                     values.append(f)
             except:
-                pass
+                continue
 
         return self._average(values)
 
