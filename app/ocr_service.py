@@ -33,12 +33,8 @@ class OCRProcessor:
         if sys.platform.startswith('win'):
             pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
         else:
-            # Explicitly target the standalone binary folder we built inside the src directory
-            render_binary = '/opt/render/project/src/bin/tesseract'
-            if os.path.exists(render_binary):
-                pytesseract.pytesseract.tesseract_cmd = render_binary
-            else:
-                pytesseract.pytesseract.tesseract_cmd = 'tesseract'
+            # Standard fallback path for Linux cloud environments
+            pytesseract.pytesseract.tesseract_cmd = 'tesseract'
 
         try:
             pytesseract.get_tesseract_version()
