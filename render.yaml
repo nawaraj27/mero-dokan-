@@ -4,13 +4,13 @@ services:
     runtime: python
 
     buildCommand: |
-      apt-get update
-      apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev wget
+      apt-get update -y
 
-      mkdir -p /usr/share/tesseract-ocr/5/tessdata
-
-      wget -O /usr/share/tesseract-ocr/5/tessdata/nep.traineddata \
-      https://github.com/tesseract-ocr/tessdata/raw/main/nep.traineddata
+      apt-get install -y \
+        tesseract-ocr \
+        tesseract-ocr-eng \
+        tesseract-ocr-nep \
+        libtesseract-dev
 
       pip install --upgrade pip
       pip install -r requirements.txt
