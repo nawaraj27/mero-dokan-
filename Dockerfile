@@ -1,30 +1,23 @@
 FROM python:3.11-slim
 
-# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies including Tesseract
+# Install system dependencies (THIS IS CRITICAL FOR OCR)
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-nep \
     libtesseract-dev \
-    libleptonica-dev \
-    pkg-config \
-    gcc \
-    g++ \
+    libgl1 \
+    libglib2.0-0 \
     && apt-get clean
 
-# Set work directory
 WORKDIR /app
 
-# Copy project
 COPY . /app
 
-# Install Python dependencies
+# Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port
 EXPOSE 10000
 
-# Start app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
