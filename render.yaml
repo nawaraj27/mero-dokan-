@@ -2,11 +2,11 @@ services:
   - type: web
     name: mero-dokan
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      apt-get update
+      apt-get install -y tesseract-ocr libtesseract-dev
+      pip install -r requirements.txt
     startCommand: python run.py
-    packages:
-      - tesseract-ocr
-      - libtesseract-dev
     envVars:
       - key: OCR_LANGUAGES
         value: eng+nep
