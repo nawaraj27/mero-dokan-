@@ -4,7 +4,7 @@ import io
 import logging
 import os
 import sys
-import shutilf
+import shutil
 from pathlib import Path
 from typing import Iterable
 
@@ -34,20 +34,24 @@ class OCRProcessor:
     def __init__(self) -> None:
         self.is_available = False
 
-        # Default language
+        # OCR languages (English + Nepali)
         self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep")
 
         # -------------------------------
-        # FIX 1: SAFE TESSERACT DETECTION
+        # SAFE TESSERACT DETECTION
         # -------------------------------
         tesseract_path = os.getenv("TESSERACT_CMD") or shutil.which("tesseract")
 
+        # Linux (Render) or fallback Windows path
         if sys.platform.startswith("win"):
-            pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-        elif tesseract_path:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_path
-        else:
-            pytesseract.pytesseract.tesseract_cmd = "tesseract"
+            tesseract_path = tesseract_path or r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+        if not tesseract_path:
+            logger.warning("Tesseract not found in PATH or ENV")
+            return
+
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+        logger.info("Using Tesseract at: %s", tesseract_path)
 
         # -------------------------------
         # VERIFY TESSERACT
@@ -55,35 +59,32 @@ class OCRProcessor:
         try:
             pytesseract.get_tesseract_version()
             self.is_available = True
-            logger.info("Tesseract found: %s", pytesseract.pytesseract.tesseract_cmd)
         except Exception as exc:
-            logger.warning(
-                "Tesseract OCR not available: %s. OCR disabled.",
-                exc,
-            )
+            logger.warning("Tesseract not available: %s", exc)
             return
 
         # -------------------------------
-        # VALIDATE LANGUAGES SAFELY
+        # VALIDATE LANGUAGES
         # -------------------------------
         try:
             self._validate_languages()
         except Exception as exc:
             logger.warning("Language validation failed: %s", exc)
 
-        logger.info("OCR processor initialized with languages: %s", self.ocr_languages)
+        logger.info("OCR ready with languages: %s", self.ocr_languages)
 
     # =========================================================
     # PUBLIC API
     # =========================================================
     def extract_text(self, filename: str, file_bytes: bytes) -> tuple[str, float, str]:
         if not self.is_available:
-            raise OCRProcessingError("Tesseract is not installed or not available on system.")
+            raise OCRProcessingError("Tesseract not available")
 
         extension = Path(filename).suffix.lower()
+
         if extension not in SUPPORTED_EXTENSIONS:
             raise UnsupportedFileTypeError(
-                f"Unsupported file type. Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
+                f"Unsupported file type: {extension}"
             )
 
         if extension == ".pdf":
@@ -138,7 +139,11 @@ class OCRProcessor:
         config = "--oem 1 --psm 6"
 
         try:
-            text = pytesseract.image_to_string(processed, config=config, lang=self.ocr_languages)
+            text = pytesseract.image_to_string(
+                processed,
+                config=config,
+                lang=self.ocr_languages
+            )
 
             details = pytesseract.image_to_data(
                 processed,
@@ -155,17 +160,15 @@ class OCRProcessor:
         return clean_text, confidence
 
     # =========================================================
-    # LANGUAGE VALIDATION (SAFE)
+    # LANGUAGE VALIDATION
     # =========================================================
     def _validate_languages(self) -> None:
         requested = [l.strip() for l in self.ocr_languages.split("+") if l.strip()]
-        if not requested:
-            raise OCRProcessingError("No OCR languages set")
 
         try:
             available = set(pytesseract.get_languages(config=""))
         except Exception:
-            available = {"eng"}  # fallback safe mode
+            available = {"eng"}
 
         missing = [l for l in requested if l not in available]
 
