@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Iterable
 
@@ -18,7 +19,9 @@ from pytesseract import Output
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+SUPPORTED_IMAGE_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"
+}
 SUPPORTED_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {".pdf"}
 
 
@@ -33,29 +36,37 @@ class UnsupportedFileTypeError(Exception):
 class OCRProcessor:
     def __init__(self) -> None:
         self.is_available = False
-
-        # OCR languages (English + Nepali)
         self.ocr_languages = os.getenv("OCR_LANGUAGES", "eng+nep")
 
-        # -------------------------------
-        # SAFE TESSERACT DETECTION
-        # -------------------------------
+        # =========================================================
+        # SAFE TESSERACT SETUP (FINAL + RENDER SAFE)
+        # =========================================================
         tesseract_path = os.getenv("TESSERACT_CMD") or shutil.which("tesseract")
 
-        # Linux (Render) or fallback Windows path
+        # Windows fallback
         if sys.platform.startswith("win"):
             tesseract_path = tesseract_path or r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
         if not tesseract_path:
-            logger.warning("Tesseract not found in PATH or ENV")
+            logger.warning("Tesseract not found in system PATH or ENV")
+            return
+
+        # Verify binary actually works
+        try:
+            subprocess.run(
+                [tesseract_path, "--version"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        except Exception as exc:
+            logger.warning("Tesseract binary not working: %s", exc)
             return
 
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
-        logger.info("Using Tesseract at: %s", tesseract_path)
+        logger.info("Tesseract working at: %s", tesseract_path)
 
-        # -------------------------------
-        # VERIFY TESSERACT
-        # -------------------------------
+        # Verify pytesseract connection
         try:
             pytesseract.get_tesseract_version()
             self.is_available = True
@@ -63,9 +74,7 @@ class OCRProcessor:
             logger.warning("Tesseract not available: %s", exc)
             return
 
-        # -------------------------------
-        # VALIDATE LANGUAGES
-        # -------------------------------
+        # Validate languages
         try:
             self._validate_languages()
         except Exception as exc:
@@ -94,7 +103,11 @@ class OCRProcessor:
             texts = [t for t, _ in results if t]
             confidences = [c for _, c in results if c > 0]
 
-            return "\n\n".join(texts).strip(), self._average(confidences), "pdf"
+            return (
+                "\n\n".join(texts).strip(),
+                self._average(confidences),
+                "pdf",
+            )
 
         image = self._load_image(file_bytes)
         text, confidence = self._ocr_page(image)
@@ -125,7 +138,11 @@ class OCRProcessor:
 
         for page in doc:
             pix = page.get_pixmap(matrix=zoom, alpha=False)
-            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            img = Image.frombytes(
+                "RGB",
+                [pix.width, pix.height],
+                pix.samples
+            )
             images.append(img)
 
         doc.close()
@@ -192,7 +209,9 @@ class OCRProcessor:
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
         denoise = cv2.fastNlMeansDenoising(gray, None, 15, 7, 21)
         contrast = cv2.createCLAHE(2.0, (8, 8)).apply(denoise)
-        _, thresh = cv2.threshold(contrast, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, thresh = cv2.threshold(
+            contrast, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
 
         return thresh
 
