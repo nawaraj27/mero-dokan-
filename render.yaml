@@ -1,11 +1,22 @@
 services:
   - type: web
     name: mero-dokan
-    runtime: python-3.11.9
+    runtime: python
 
     buildCommand: >
       apt-get update &&
-      apt-get install -y tesseract-ocr tesseract-ocr-nep libtesseract-dev &&
+      apt-get install -y tesseract-ocr libtesseract-dev tesseract-ocr-eng &&
+      pip install --upgrade pip &&
       pip install -r requirements.txt
 
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+      - key: OCR_LANGUAGES
+        value: "eng"
+
+      - key: TESSERACT_CMD
+        value: "/usr/bin/tesseract"
