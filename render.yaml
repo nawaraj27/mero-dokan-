@@ -7,9 +7,9 @@ services:
       apt-get update
       apt-get install -y tesseract-ocr tesseract-ocr-eng libtesseract-dev wget
 
-      mkdir -p /usr/share/tesseract-ocr/4.00/tessdata
+      mkdir -p /usr/share/tesseract-ocr/5/tessdata
 
-      wget -O /usr/share/tesseract-ocr/4.00/tessdata/nep.traineddata \
+      wget -O /usr/share/tesseract-ocr/5/tessdata/nep.traineddata \
       https://github.com/tesseract-ocr/tessdata/raw/main/nep.traineddata
 
       pip install --upgrade pip
